@@ -6,7 +6,7 @@ import requests
 from local_chat import *
 
 # =======================
-# 作为客户端，向 NapCat 发送消息
+# 作为服务端，向 NapCat 发送消息
 # =======================
 
 def sendMessage(userID, user_message): 
@@ -37,7 +37,7 @@ def sendMessage(userID, user_message):
 # =======================
 
 async def handler(websocket):
-
+    
     print("NapCat 连接成功！")
 
     try:
@@ -51,14 +51,11 @@ async def handler(websocket):
                 msg = data["message"][0]["data"]["text"]
 
                 print("======================")
-                print("Fake_zsz(3453211161) 收到来自 ", senderUserName, "(", userID, ") 的消息", sep = '')
+                print("[AI]MahiroAIChat(3453211161) 收到来自 ", senderUserName, "(", userID, ") 的消息", sep = '')
                 print(msg)
                 print("======================")
 
-                sendMessage(
-                    userID, 
-                    "收到了喵~"
-                )
+                sendMessage(userID, msg)
 
     except websockets.exceptions.ConnectionClosed:
         print("NapCat 断开连接")

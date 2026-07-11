@@ -1,15 +1,53 @@
 import asyncio
 import websockets
 import json
+import socket
 import requests
 
+import os
+import subprocess
+import time
+
 from local_chat import *
+
+# =======================
+# 启动 NapCat
+# =======================
+
+def startNapCat():
+    workdir = os.path.join(
+        "NapCat",
+        "NapCat.44498.Shell",
+    )       # 添加bat路径
+
+    subprocess.Popen(       # 启动新的子进程
+        ["cmd", "/k", "napcat.quick.bat"],
+        cwd=workdir     # 设置工作目录
+    )       # 启动 NapCat
+
+# =======================
+# 等待 NapCat 启动成功
+# =======================
+
+def waitNapCatStarting(host, port, maxWaitingTime):
+    startTime = time.time()
+
+    while True:
+        if (time.time() - startTime > maxWaitingTime):
+            raise TimeoutError("等待超时，请检查是否正确安装了 NapCat……")
+
+        try:        # 创建一个 socket 连接，监测是否超时
+            s = socket.create_connection((host, port), timeout=1)
+            s.close()
+            break
+        except:
+            time.sleep(1)
 
 # =======================
 # 作为服务端，向 NapCat 发送消息
 # =======================
 
-def sendMessage(userID, user_message): 
+def sendMessage(userID, userName, user_message): 
     url = "http://127.0.0.1:3000/send_private_msg"
     reply = qq_chat(user_message)
 
@@ -25,7 +63,7 @@ def sendMessage(userID, user_message):
             timeout=5
         )
 
-        print("成功发送回复消息", reply)
+        print("[AI]MahiroAIChat(3453211161) 向 ", userName, " (", userID, ") 发送消息\n", reply, sep='')
         print("======================")
 
     except Exception as e:  # 捕获异常
@@ -37,7 +75,7 @@ def sendMessage(userID, user_message):
 # =======================
 
 async def handler(websocket):
-    
+
     print("NapCat 连接成功！")
 
     try:
@@ -55,21 +93,23 @@ async def handler(websocket):
                 print(msg)
                 print("======================")
 
-                sendMessage(userID, msg)
+                sendMessage(userID, senderUserName, msg)
 
     except websockets.exceptions.ConnectionClosed:
-        print("NapCat 断开连接")
+        print("NapCat 断开连接……")
 
 
 async def main():
+    startNapCat()       # 启动 NapCat
+    waitNapCatStarting("127.0.0.1", "3000", 60)    # 等待 http server 启动完成再进行
 
     server = await websockets.serve(
-        handler,
+        handler,        # 调用 handler
         "127.0.0.1",
         8080
     )
 
-    print("QQ机器人 WebSocket 服务器启动")
+    print("QQ机器人 WebSocket 服务器启动。")
     print("监听中 ws://127.0.0.1:8080")
 
     await server.wait_closed()

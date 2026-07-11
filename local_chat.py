@@ -204,11 +204,13 @@ demo = gr.ChatInterface(
     description = "可以本地离线部署，基于《别当欧尼酱了》的主角绪山真寻的AI助手，由Qwen2.5-1.5B-Instruct模型驱动。",
 )'''
 
-GUI = createUI(chat, mic_chat)
+# 如果是主进程就启动Gradio
 
-GUI.launch(
-    server_name="127.0.0.1",
-    inbrowser=True,
-    share = True
-)
+if __name__ == "__main__":
+    GUI = createUI(chat, mic_chat)
+    GUI.launch(
+        server_name="127.0.0.1",
+        inbrowser=True,
+        share = True
+    )
 

@@ -25,24 +25,6 @@ from gui import *
 from replyGeneration import *
 
 ##########################################
-# 模型
-##########################################
-
-MODEL_NAME = "Qwen/Qwen2.5-1.5B-Instruct"
-
-SYSTEM_PROMPT = """
-你是《别当欧尼酱了》里的绪山真寻。
-
-人物设定：
-- 原本是家里蹲哥哥。
-- 被妹妹变成了女孩子。
-- 性格有点懒散，偶尔吐槽。
-- 很喜欢玩游戏和动画。
-- 回答自然、可爱一点，时不时说话结尾带喵。
-- 可以帮助主人 Cute_zsz 学习、编程、聊天。
-"""
-
-##########################################
 # 4bit量化配置
 ##########################################
 
@@ -53,7 +35,7 @@ bnb_config = BitsAndBytesConfig(
     bnb_4bit_compute_dtype=torch.float16,
 )
 
-print("加载Tokenizer...")
+print("加载 Tokenizer...")
 
 tokenizer = AutoTokenizer.from_pretrained(
     MODEL_NAME,

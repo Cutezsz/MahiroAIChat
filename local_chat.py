@@ -137,19 +137,26 @@ def mic_chat(audioPath, history):
 # qq聊天回复
 ##########################################
 
-def qq_chat(user_message):
-    
+def qq_chat(user_message, history):
     # 第一步：处理messages
+    history = history or []
+
     messages = [
         {
             "role": "system",
             "content": SYSTEM_PROMPT
-        },
+        }
+    ]
+
+    for message in history:
+        messages.append(message)    # 格式一样直接append
+
+    messages.append(
         {
             "role": "user",
             "content": user_message
         }
-    ]
+    )
 
     # 第二步：生成文本
     text = tokenizer.apply_chat_template(

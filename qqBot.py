@@ -12,6 +12,7 @@ from const_define import *
 from local_chat import *
 from audioConvert import *      # 将 qq 语音转换为标准 wav 格式
 from speech_to_text import *    # 处理 qq 语音
+from qqHistory import *         # 处理 qq 聊天记录
 
 # =======================
 # 启动 NapCat
@@ -90,6 +91,7 @@ async def handler(websocket):
                 userID = data.get("user_id")
                 senderUserName = data["sender"]["nickname"]
 
+                # 处理消息
                 messageType = ''
                 if (data["message"][0]["type"] == "text"): 
                     messageType = "文本消息"
@@ -114,12 +116,31 @@ async def handler(websocket):
                     continue
                     
 
+                # 进行回复
                 print("======================")
                 print("收到来自 ", senderUserName, "(", userID, ") 的", messageType, sep = '')
                 print(msg)
                 print("----------------------")
 
-                sendMessage(userID, senderUserName, qq_chat(msg))
+                history = getHistory(userID)
+                reply = qq_chat(msg, history)
+                # 保存历史记录
+                history.append(
+                    {
+                        "role": "user",
+                        "content": msg
+                    }
+                )
+                history.append(
+                    {
+                        "role": "assistant",
+                        "content": reply
+                    }
+                )
+
+                history = history[-MAX_HISTORY:]     # 只保留最近的 MAX_HISTORY 条记录
+                saveHistory(userID, history)
+                sendMessage(userID, senderUserName, reply=reply)
 
     except websockets.exceptions.ConnectionClosed:
         print("NapCat 断开连接……")

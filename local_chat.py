@@ -81,12 +81,12 @@ def chat(user_message, history):
                 "content": message["content"][0]["text"]
             }
         )
-        messages.append(
-            {
-                "role": "user",
-                "content": user_message,
-            }
-        )
+    messages.append(
+        {
+            "role": "user",
+            "content": user_message,
+        }
+    )
 
     # 第二步：生成文本
     text = tokenizer.apply_chat_template(

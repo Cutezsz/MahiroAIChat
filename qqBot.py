@@ -13,6 +13,7 @@ from local_chat import *
 from audioConvert import *      # 将 qq 语音转换为标准 wav 格式
 from speech_to_text import *    # 处理 qq 语音
 from qqHistory import *         # 处理 qq 聊天记录
+from qqUsers import *           # 获取 qq 用户列表
 
 # =======================
 # 启动 NapCat
@@ -73,12 +74,23 @@ def sendMessage(userID, userName, reply):
         print("发送失败:", e)
 
 # =======================
+# 开启之后向所有用户发送消息
+# =======================
+
+def ohayo():
+    users = getQQUsers()
+    for user in users:
+        if (user["id"] != 951255007):
+            sendMessage(user["id"], user["name"], qq_chat("你好呀！", []))
+
+# =======================
 # 作为客户端，等待 NapCat 客户端连接
 # =======================
 
 async def handler(websocket):
 
     print("NapCat 连接成功！")
+    ohayo()
     sendMessage(951255007, "Cute_zsz", QQWelcome)
 
     try:
@@ -90,6 +102,7 @@ async def handler(websocket):
             if (data.get("post_type") == "message"):
                 userID = data.get("user_id")
                 senderUserName = data["sender"]["nickname"]
+                addUser(userID, senderUserName)     # 收到消息时添加用户
 
                 # 处理消息
                 messageType = ''
@@ -114,7 +127,7 @@ async def handler(websocket):
                 else: 
                     sendMessage(userID, senderUserName, QQMessageTypeError)
                     continue
-                    
+                
 
                 # 进行回复
                 print("======================")

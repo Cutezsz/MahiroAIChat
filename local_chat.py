@@ -22,7 +22,7 @@ from transformers import (
 
 from speech_to_text import *
 from gui import *
-from replyGeneration import *
+from reply_generation import *
 
 ##########################################
 # 4bit量化配置

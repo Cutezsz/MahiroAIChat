@@ -52,7 +52,7 @@ def waitNapCatStarting(host, port, maxWaitingTime):
 # 作为服务端，向 NapCat 发送消息
 # =======================
 
-def sendMessage(userID, userName, reply): 
+def sendPrivateMessage(userID, userName, reply): 
     url = "http://127.0.0.1:3000/send_private_msg"
 
     data = {
@@ -61,7 +61,7 @@ def sendMessage(userID, userName, reply):
     }
 
     try:
-        print("向 ", userName, "(", userID, ") 发送消息\n", reply, sep='')
+        print("向用户 ", userName, "(", userID, ") 发送消息\n", reply, sep='')
         print("======================")
 
         response = requests.post(
@@ -73,6 +73,27 @@ def sendMessage(userID, userName, reply):
     except Exception as e:  # 捕获异常
         print("发送失败:", e)
 
+def sendGroupMessage(groupID, groupName, reply):
+    url = "http://127.0.0.1:3000/send_group_msg"
+
+    data = {
+        "group_id": groupID,
+        "message": reply
+    }
+
+    try:
+        print("向群聊 ", groupName, "(", groupID, ") 发送消息\n", reply, sep='')
+        print("======================")
+
+        response = requests.post(
+            url,
+            json=data,
+            timeout=5
+        )
+
+    except Exception as e:
+        print("发送失败:", e)
+
 # =======================
 # 开启之后向所有用户发送消息
 # =======================
@@ -82,7 +103,7 @@ def ohayo():
     for user in users:
         if (user["id"] != 951255007):
             reply = deepseekChat("你好呀！", [], isThinking = False)
-            sendMessage(user["id"], user["name"], reply)
+            sendPrivateMessage(user["id"], user["name"], reply)
 
 # =======================
 # 作为客户端，等待 NapCat 客户端连接
@@ -91,16 +112,17 @@ def ohayo():
 async def handler(websocket):
 
     print("NapCat 连接成功！")
-    ohayo()
-    sendMessage(951255007, "Cute_zsz", QQWelcome)
+    # ohayo()
+    sendPrivateMessage(951255007, "Cute_zsz", QQWelcome)
 
     try:
         async for message in websocket:
             data = json.loads(message)
-            #print("JSON 数据：", data)
+            # print("JSON 数据：", data)
 
-            # 只处理 message 聊天消息
-            if (data.get("post_type") == "message"):
+            # 私聊
+            if (data.get("message_type") == "private"):
+                if (data.get("post_type") != "message"): continue
                 userID = data.get("user_id")
                 senderUserName = data["sender"]["nickname"]
                 addUser(userID, senderUserName)     # 收到消息时添加用户
@@ -126,11 +148,10 @@ async def handler(websocket):
                     wavPath = audioConvert(audioPath)
                     msg = speechToText(audioPath=wavPath)
                 else: 
-                    sendMessage(userID, senderUserName, QQMessageTypeError)
+                    sendPrivateMessage(userID, senderUserName, QQMessageTypeError)
                     continue
-                
 
-                # 进行回复
+                # 日志
                 print("======================")
                 print("收到来自 ", senderUserName, "(", userID, ") 的", messageType, sep = '')
                 print(msg)
@@ -156,7 +177,98 @@ async def handler(websocket):
 
                 history = history[-MAX_HISTORY:]     # 只保留最近的 MAX_HISTORY 条记录
                 saveHistory(userID, history)
-                sendMessage(userID, senderUserName, reply=reply)
+                sendPrivateMessage(userID, senderUserName, reply=reply)
+
+
+            # 群聊
+            if (data.get("message_type") == "group"):
+                if (data.get("post_type") != "message"): continue
+                groupID = data.get("group_id")
+                groupName = data.get("group_name")
+                role = data["sender"]["role"]
+                if (role == "owner"): role = "群主"
+                if (role == "admin"): role = "管理员"
+                if (role == "member"): role = "成员"
+                
+                userID = data.get("user_id")
+                senderUserName = data["sender"]["nickname"]
+                addUser(userID, senderUserName)    
+
+                # 获取@的位置以及是否@自己
+                At = -1
+                isSendToSelf = False
+                for i in range(len(data["message"])):
+                    if (data["message"][i]["type"] == "at"):
+                        At = i
+                        isSendToSelf = (data["message"][i]["data"]["qq"] == str(SELF_QQ_ID))
+
+                messageType = ''
+                msg = ''
+                stop = False
+                for i in range(len(data["message"])):
+                    if (i == At): 
+                        continue  # 跳过@消息
+
+                    if (data["message"][i]["type"] == "text"): 
+                        messageType = "文本消息"
+                        msg += data["message"][i]["data"]["text"]
+                    elif (data["message"][i]["type"] == "record"):
+                        messageType = "语音消息"
+                        audioPath = data["message"][i]["data"]["path"]
+
+                        for _ in range(50):
+                            if os.path.exists(audioPath):
+                                break
+                            time.sleep(0.1)
+                        else:
+                            print("语音文件下载失败，请检查网络连接。")
+                            stop = True
+                            break
+
+                        wavPath = audioConvert(audioPath)
+                        msg += speechToText(audioPath=wavPath)
+                    else: 
+                        pass        
+                if (stop): continue
+
+
+                print("======================")
+                print("收到来自群 ", groupName, "(", groupID, ") 中 ", role, " ", senderUserName, "(", userID, ") 的", messageType, sep = '')
+                print(msg)
+                print("----------------------")
+
+                # 对于不是@自己的消息，只需要存进群消息记录即可
+                if (isSendToSelf == False):
+                    history = getHistory(groupID, GROUP_HISTORY_DIR)
+                    history.append(
+                        {
+                            "role": "user",
+                            "content": senderUserName + "说：" + msg
+                        }
+                    )
+                    saveHistory(groupID, history, GROUP_HISTORY_DIR)
+                else: 
+                    # 处理@自己的消息
+                    groupHistory = getHistory(groupID, GROUP_HISTORY_DIR)
+                    reply = deepseekChat(msg, groupHistory, isThinking = False)  # 调用deepseek聊天
+
+                    # 写入新的历史记录
+                    groupHistory.append(
+                        {
+                            "role": "user",
+                            "content": senderUserName + "说：" + msg
+                        }
+                    )
+                    groupHistory.append(
+                        {
+                            "role": "assistant",
+                            "content": reply
+                        }
+                    )
+
+                    groupHistory = groupHistory[-MAX_GROUP_HISTORY:]     # 只保留最近的 MAX_HISTORY 条记录
+                    saveHistory(groupID, groupHistory, GROUP_HISTORY_DIR)
+                    sendGroupMessage(groupID, groupName, reply)
 
     except websockets.exceptions.ConnectionClosed:
         print("NapCat 断开连接……")

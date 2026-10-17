@@ -34,4 +34,9 @@ def deepseekChat(user_message, history, isThinking = False):
         top_p = TOP_P,
         stream = False
     )
-    return response.choices[0].message.content
+
+    finish_reason = response.choices[0].finish_reason
+    if (finish_reason == "stop"):       # 正常情况
+        return response.choices[0].message.content
+    elif (finish_reason == "length"):   # 长度限制
+        return f"【ERROR】回答生成超过长度限制（Generated Reply Exceeded）"

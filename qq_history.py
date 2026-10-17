@@ -1,15 +1,9 @@
 import os
 import json
+from const_define import *
 
-HISTORY_DIR = "qq_history" 
-
-os.makedirs(       # 创建存储聊天记录目录
-    HISTORY_DIR,
-    exist_ok=True,
-)
-
-def getHistory(userID):
-    path = os.path.join(HISTORY_DIR, f"{userID}.json")
+def getHistory(userID, historyDir = HISTORY_DIR):
+    path = os.path.join(historyDir, f"{userID}.json")
 
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
@@ -17,8 +11,13 @@ def getHistory(userID):
     else:
         return []
 
-def saveHistory(userID, history):
-    path = os.path.join(HISTORY_DIR, f"{userID}.json")
+def saveHistory(userID, history, historyDir = HISTORY_DIR):
+    os.makedirs(        # 自动创建目录
+        historyDir,
+        exist_ok=True,
+    )
+
+    path = os.path.join(historyDir, f"{userID}.json")
 
     with open(path, "w", encoding="utf-8") as f:
         json.dump(history, f, ensure_ascii=False, indent=4)

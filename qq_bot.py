@@ -250,7 +250,7 @@ async def handler(websocket):
                 else: 
                     # 处理@自己的消息
                     groupHistory = getHistory(groupID, GROUP_HISTORY_DIR)
-                    reply = deepseekChat(msg, groupHistory, isThinking = False)  # 调用deepseek聊天
+                    reply = deepseekChat(senderUserName + '说：' + msg, groupHistory, isThinking = False)  # 调用deepseek聊天
 
                     # 写入新的历史记录
                     groupHistory.append(

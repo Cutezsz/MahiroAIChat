@@ -8,12 +8,13 @@ import os
 import subprocess
 import time
 
+# 做项目尽量不要全导入，按需导入
 from const_define import *
-from audio_convert import *      # 将 qq 语音转换为标准 wav 格式
-from speech_to_text import *    # 处理 qq 语音
-from qq_history import *         # 处理 qq 聊天记录
-from qq_users import *           # 获取 qq 用户列表
-from deepseek_chat import *     # 接入 deepseek 作为聊天 api
+from audio_convert import audioConvert      # 将 qq 语音转换为标准 wav 格式
+from speech_to_text import speechToText    # 处理 qq 语音
+from qq_history import saveHistory, getHistory         # 处理 qq 聊天记录
+from qq_users import addUser, getQQUsers           # 获取 qq 用户列表
+from deepseek_chat import deepseekChat     # 接入 deepseek 作为聊天 api
 
 # =======================
 # 启动 NapCat
@@ -159,7 +160,7 @@ async def handler(websocket):
 
                 history = getHistory(userID)
                 # reply = qq_chat(msg, history)
-                reply = deepseekChat(msg, history, isThinking = False)  # 调用deepseek聊天
+                reply = deepseekChat(msg, history)  # 调用deepseek聊天
 
                 # 保存历史记录
                 history.append(
@@ -178,7 +179,6 @@ async def handler(websocket):
                 history = history[-MAX_HISTORY:]     # 只保留最近的 MAX_HISTORY 条记录
                 saveHistory(userID, history)
                 sendPrivateMessage(userID, senderUserName, reply=reply)
-
 
             # 群聊
             if (data.get("message_type") == "group"):
@@ -250,7 +250,7 @@ async def handler(websocket):
                 else: 
                     # 处理@自己的消息
                     groupHistory = getHistory(groupID, GROUP_HISTORY_DIR)
-                    reply = deepseekChat(senderUserName + '说：' + msg, groupHistory, isThinking = False)  # 调用deepseek聊天
+                    reply = deepseekChat(senderUserName + '说：' + msg, groupHistory)  # 调用deepseek聊天
 
                     # 写入新的历史记录
                     groupHistory.append(

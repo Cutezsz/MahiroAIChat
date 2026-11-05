@@ -14,7 +14,8 @@ from audio_convert import audioConvert      # 将 qq 语音转换为标准 wav �
 from speech_to_text import speechToText    # 处理 qq 语音
 from qq_history import saveHistory, getHistory         # 处理 qq 聊天记录
 from qq_users import addUser, getQQUsers           # 获取 qq 用户列表
-from deepseek_chat import deepseekChat     # 接入 deepseek 作为聊天 api
+from deepseek_chat import deepseekChat, judgeActive     # 接入 deepseek 作为聊天 api
+from deepseek_image import deepseekImage    # 接入 deepseek 图像处理
 
 # =======================
 # 启动 NapCat
@@ -116,6 +117,8 @@ async def handler(websocket):
     # ohayo()
     sendPrivateMessage(951255007, "Cute_zsz", QQWelcome)
 
+    lastActiveTime = {}
+
     try:
         async for message in websocket:
             data = json.loads(message)
@@ -130,27 +133,37 @@ async def handler(websocket):
 
                 # 处理消息
                 messageType = ''
-                if (data["message"][0]["type"] == "text"): 
-                    messageType = "文本消息"
-                    msg = data["message"][0]["data"]["text"]
-                elif (data["message"][0]["type"] == "record"):
-                    messageType = "语音消息"
-                    audioPath = data["message"][0]["data"]["path"]
+                msg = ''
+                for i in range(len(data["message"])):
+                    if (data["message"][i]["type"] == "text"): 
+                        messageType = "文本消息"
+                        msg += data["message"][i]["data"]["text"]
 
-                    # 等待语音文件下载
-                    for _ in range(50):
-                        if os.path.exists(audioPath):
-                            break
-                        time.sleep(0.1)
-                    else:
-                        print("语音文件下载失败，请检查网络连接。")
+                    elif (data["message"][i]["type"] == "record"):
+                        messageType = "语音消息"
+                        audioPath = data["message"][i]["data"]["path"]
+
+                        # 等待语音文件下载
+                        for _ in range(50):
+                            if os.path.exists(audioPath):
+                                break
+                            time.sleep(0.1)
+                        else:
+                            print("语音文件下载失败，请检查网络连接。")
+                            continue
+
+                        wavPath = audioConvert(audioPath)
+                        msg += speechToText(audioPath=wavPath)
+
+                    elif (data["message"][i]["type"] == "image"):
+                        messageType = "图片消息"    
+                        # 图片信息分为三种：动画表情 / 图片 / 文件
+                        url = data["message"][i]["data"]["url"]
+                        msg += deepseekImage(url)
+
+                    else: 
+                        sendPrivateMessage(userID, senderUserName, QQMessageTypeError)
                         continue
-
-                    wavPath = audioConvert(audioPath)
-                    msg = speechToText(audioPath=wavPath)
-                else: 
-                    sendPrivateMessage(userID, senderUserName, QQMessageTypeError)
-                    continue
 
                 # 日志
                 print("======================")
@@ -180,6 +193,9 @@ async def handler(websocket):
                 saveHistory(userID, history)
                 sendPrivateMessage(userID, senderUserName, reply=reply)
 
+
+
+
             # 群聊
             if (data.get("message_type") == "group"):
                 if (data.get("post_type") != "message"): continue
@@ -196,11 +212,11 @@ async def handler(websocket):
 
                 # 获取@的位置以及是否@自己
                 At = -1
-                isSendToSelf = False
+                SendTo = 0
                 for i in range(len(data["message"])):
                     if (data["message"][i]["type"] == "at"):
                         At = i
-                        isSendToSelf = (data["message"][i]["data"]["qq"] == str(SELF_QQ_ID))
+                        SendTo = data["message"][i]["data"]["qq"]
 
                 messageType = ''
                 msg = ''
@@ -212,6 +228,7 @@ async def handler(websocket):
                     if (data["message"][i]["type"] == "text"): 
                         messageType = "文本消息"
                         msg += data["message"][i]["data"]["text"]
+
                     elif (data["message"][i]["type"] == "record"):
                         messageType = "语音消息"
                         audioPath = data["message"][i]["data"]["path"]
@@ -227,8 +244,15 @@ async def handler(websocket):
 
                         wavPath = audioConvert(audioPath)
                         msg += speechToText(audioPath=wavPath)
+                    elif (data["message"][i]["type"] == "image"):
+                        messageType = "图片消息"    
+                        # 图片信息分为三种：动画表情 / 图片 / 文件
+                        url = data["message"][i]["data"]["url"]
+                        msg += deepseekImage(url)
+
                     else: 
                         pass        
+
                 if (stop): continue
 
 
@@ -237,37 +261,37 @@ async def handler(websocket):
                 print(msg)
                 print("----------------------")
 
+                history = getHistory(groupID, GROUP_HISTORY_DIR)
+                history.append(
+                    {
+                        "role": "user",
+                        "content": senderUserName + "说：" + msg
+                    }
+                )
+                saveHistory(groupID, history, GROUP_HISTORY_DIR)
+
+                # 根据上下文判断是否自己主动接话
+                active_weight = judgeActive(history)      
+                print("模型活跃度：", active_weight)
+                isActive = ((active_weight >= ACTIVE_CHAT_THRESHOLD and time.time() - lastActiveTime.get(groupID, 0) > ACTIVE_COLDDOWN)
+                            or active_weight >= ACTIVE_CHAT_THRESHOLD_EXTRA)
+                if (isActive): lastActiveTime[groupID] = time.time()     # 如果这轮主动回复，则更新冷却
+
                 # 对于不是@自己的消息，只需要存进群消息记录即可
-                if (isSendToSelf == False):
-                    history = getHistory(groupID, GROUP_HISTORY_DIR)
-                    history.append(
-                        {
-                            "role": "user",
-                            "content": senderUserName + "说：" + msg
-                        }
-                    )
-                    saveHistory(groupID, history, GROUP_HISTORY_DIR)
-                else: 
+                if (SendTo == SELF_QQ_ID or isActive == True):
                     # 处理@自己的消息
-                    groupHistory = getHistory(groupID, GROUP_HISTORY_DIR)
-                    reply = deepseekChat(senderUserName + '说：' + msg, groupHistory)  # 调用deepseek聊天
+                    reply = deepseekChat(senderUserName + '说：' + msg, history)  # 调用deepseek聊天
 
                     # 写入新的历史记录
-                    groupHistory.append(
-                        {
-                            "role": "user",
-                            "content": senderUserName + "说：" + msg
-                        }
-                    )
-                    groupHistory.append(
+                    history.append(
                         {
                             "role": "assistant",
                             "content": reply
                         }
                     )
 
-                    groupHistory = groupHistory[-MAX_GROUP_HISTORY:]     # 只保留最近的 MAX_HISTORY 条记录
-                    saveHistory(groupID, groupHistory, GROUP_HISTORY_DIR)
+                    history = history[-MAX_GROUP_HISTORY:]     # 只保留最近的 MAX_HISTORY 条记录
+                    saveHistory(groupID, history, GROUP_HISTORY_DIR)
                     sendGroupMessage(groupID, groupName, reply)
 
     except websockets.exceptions.ConnectionClosed:

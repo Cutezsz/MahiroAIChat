@@ -51,3 +51,23 @@ def deepseekChat(user_message, history):
         return UNKNOWN_ERROR
     
     return TOOL_FALLBACK_REPLY  # 调用太多次工具
+
+
+def judgeActive(history):
+    content = "\n".join(f"{m['role']}: {m['content']}" for m in history)
+
+    response = client.chat.completions.create(
+        model = "deepseek-flash",
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": "阅读下面的上下文记录，仅给出一个介于 0 到 1 之间的浮点数，判断是否应该主动接话。"},
+                    {"type": "text", "text": "如果记录内刚回复过用户类似的话题，则偏向于不回复；如果记录内用户提到了自己，如出现 AI、真寻、机器人这类的关键词，则偏向于回复。"},
+                    {"type": "text", "text": content}
+                ],
+            },
+        ],
+    )
+
+    return float(response.choices[0].message.content)

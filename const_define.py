@@ -18,21 +18,21 @@ SELF_QQ_ID = "3453211161"
 HISTORY_DIR = "qq_history" 
 GROUP_HISTORY_DIR = "qq_history/group"
 
-ACTIVE_CONTENT_LEN = 3    # 判断是否主动对话依据的上下文长度
-ACTIVE_CHAT_THRESHOLD = 0.5   # 活跃聊天阈值
-ACTIVE_CHAT_THRESHOLD_EXTRA = 0.85   # 如果权重超过这个数，可以无视冷却
-ACTIVE_COLDDOWN = 60   # 主动对话冷却时间
+ACTIVE_CONTENT_LEN = 10    # 判断是否主动对话依据的上下文长度
+ACTIVE_CHAT_THRESHOLD = 0.45   # 活跃聊天阈值
+ACTIVE_CHAT_THRESHOLD_EXTRA = 0.8   # 如果权重超过这个数，可以无视冷却
+ACTIVE_COLDDOWN = 20   # 主动对话冷却时间
 
 # 人设定义
 PERSONA = "PERSONA/mahiro.md"       # 人设
 SYSTEM_PROMPT = Path(PERSONA).read_text(encoding="utf-8")
 
 # 提示 警告 报错
-QQWelcome = "【提示】MahiroAIChat 已就绪（Available）"
-QQMessageTypeError = "【ERROR】不支持的消息类型（Unsupported Message Type）"
-REPLY_EXCEEDED = "【ERROR】回复长度超过限制（Reply Exceeded）"
-UNKNOWN_ERROR = "【ERROR】未知错误（Unknown Error）"
-TOOL_FALLBACK_REPLY = "【ERROR】工具调用次数过多（Tool Fallback）"
+QQWelcome = "真寻真寻来了哦！"
+QQMessageTypeError = "Unsupported Message Type"
+REPLY_EXCEEDED = "Reply Exceeded"
+UNKNOWN_ERROR = "Unknown Error"
+TOOL_FALLBACK_REPLY = "Tool Fallback"
 
 # TOOLS
 MAX_TOOL_ROUNDS = 5     # 最多使用多少次tools

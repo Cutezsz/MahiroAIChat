@@ -172,16 +172,16 @@ async def handler(websocket):
                 print("----------------------")
 
                 history = getHistory(userID)
-                # reply = qq_chat(msg, history)
-                reply = deepseekChat(msg, history)  # 调用deepseek聊天
-
-                # 保存历史记录
                 history.append(
                     {
                         "role": "user",
-                        "content": msg
+                        "content": senderUserName + "说：" + msg
                     }
                 )
+                # reply = qq_chat(msg, history)
+                reply = deepseekChat(history)  # 调用deepseek聊天
+
+                # 保存历史记录
                 history.append(
                     {
                         "role": "assistant",
@@ -280,7 +280,7 @@ async def handler(websocket):
                 # 对于不是@自己的消息，只需要存进群消息记录即可
                 if (SendTo == SELF_QQ_ID or isActive == True):
                     # 处理@自己的消息
-                    reply = deepseekChat(senderUserName + '说：' + msg, history)  # 调用deepseek聊天
+                    reply = deepseekChat(history)  # 调用deepseek聊天
 
                     # 写入新的历史记录
                     history.append(
